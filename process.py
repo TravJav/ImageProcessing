@@ -89,3 +89,4 @@ for s, (roi, class_id) in enumerate(zip(r['rois'], r['class_ids'])):
 
 cv2.imwrite('test_output.jpg', img_copy)
 cv2.imwrite('test_mask.jpg', (255*(mask_output.astype(np.uint8))))
+cv2.imwrite('test_segment.jpg', img_copy * mask_output.astype(np.uint8))
