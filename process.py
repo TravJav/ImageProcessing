@@ -5,6 +5,7 @@ import numpy as np
 from mrcnn import utils
 import mrcnn.model as modellib
 from Config import InferenceConfig
+import glob
 
 
 class PreProcessing:
@@ -34,23 +35,23 @@ class PreProcessing:
 
     def background_subtractions(self, model):
         # Load the image - image will be the uploaded image passed into the function in production
-         IMAGE_DIR = './test.jpg'
-         image = cv2.imread(IMAGE_DIR)
-         # Run detection
-         results = model.detect([image], verbose=1)
-         # Visualize and save results
-         r = results[0]
-         img_copy = image.copy()
-         mask_output = np.zeros(img_copy.shape[:2], dtype=np.bool)
-         for s, (roi, class_id) in enumerate(zip(r['rois'], r['class_ids'])):
+        images = [cv2.imread(file) for file in glob.glob("./TRAINING_IMAGES/8_percent/*.jpg")]
+        for image in images: for
+        # Run detection
+        results = model.detect([image], verbose=1)
+        # Visualize and save results
+        r = results[0]
+        img_copy = image.copy()
+        mask_output = np.zeros(img_copy.shape[:2], dtype=np.bool)
+        for s, (roi, class_id) in enumerate(zip(r['rois'], r['class_ids'])):
             if class_id == 1:
                 row, col, end_row, end_col = roi
                 cv2.rectangle(img_copy, (col, row), (end_col, end_row), (0, 0, 255))
                 mask_output[row:end_row + 1, col:end_col + 1] = r['masks'][row:end_row + 1, col:end_col + 1, s]
 
-         cv2.imwrite('test_output.jpg', img_copy)
-         cv2.imwrite('test_mask.jpg', (255*(mask_output.astype(np.uint8))))
-         cv2.imwrite('test_segment.jpg', image * mask_output[..., None].astype(np.uint8))
+        cv2.imwrite('test_output.jpg', img_copy)
+        cv2.imwrite('test_mask.jpg', (255 * (mask_output.astype(np.uint8))))
+        cv2.imwrite('test_segment.jpg', image * mask_output[..., None].astype(np.uint8))
 
 
 path_to_mask_rcnn = '/home/travjav/Development/Mask_RCNN'
