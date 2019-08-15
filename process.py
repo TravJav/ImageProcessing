@@ -35,23 +35,27 @@ class PreProcessing:
 
     def background_subtractions(self, model):
         # Load the image - image will be the uploaded image passed into the function in production
-        images = [cv2.imread(file) for file in glob.glob("./TRAINING_IMAGES/8_percent/*.jpg")]
-        for image in images: for
-        # Run detection
-        results = model.detect([image], verbose=1)
-        # Visualize and save results
-        r = results[0]
-        img_copy = image.copy()
-        mask_output = np.zeros(img_copy.shape[:2], dtype=np.bool)
-        for s, (roi, class_id) in enumerate(zip(r['rois'], r['class_ids'])):
-            if class_id == 1:
-                row, col, end_row, end_col = roi
-                cv2.rectangle(img_copy, (col, row), (end_col, end_row), (0, 0, 255))
-                mask_output[row:end_row + 1, col:end_col + 1] = r['masks'][row:end_row + 1, col:end_col + 1, s]
+         images = [cv2.imread(file) for file in glob.glob("./TRAINING_IMAGES/10_percent/*.jpg")]
+         for image in images:
+             # Run detection
+             results = model.detect([image], verbose=1)
+             # Visualize and save results
+             r = results[0]
+             img_copy = image.copy()
+             mask_output = np.zeros(img_copy.shape[:2], dtype=np.bool)
+             for s, (roi, class_id) in enumerate(zip(r['rois'], r['class_ids'])):
+                 if class_id == 1:
+                    row, col, end_row, end_col = roi
+                    cv2.rectangle(img_copy, (col, row), (end_col, end_row), (0, 0, 255))
+                    mask_output[row:end_row + 1, col:end_col + 1] = r['masks'][row:end_row + 1, col:end_col + 1, s]
+             filename_processed = self.create_segmented_filename()
+             cv2.imwrite('output' + filename_processed, img_copy)
+             cv2.imwrite('mask' + filename_processed, (255*(mask_output.astype(np.uint8))))
+             cv2.imwrite('segment' + filename_processed, image * mask_output[..., None].astype(np.uint8))
 
-        cv2.imwrite('test_output.jpg', img_copy)
-        cv2.imwrite('test_mask.jpg', (255 * (mask_output.astype(np.uint8))))
-        cv2.imwrite('test_segment.jpg', image * mask_output[..., None].astype(np.uint8))
+    def create_segmented_filename(self):
+        import uuid
+        return str(uuid.uuid4()) + '.jpg'
 
 
 path_to_mask_rcnn = '/home/travjav/Development/Mask_RCNN'
