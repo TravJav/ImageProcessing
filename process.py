@@ -1,20 +1,22 @@
 import cv2
 import os
 import sys
+import Config
 import numpy as np
 from mrcnn import utils
 import mrcnn.model as modellib
 from Config import InferenceConfig
 import glob
+from pathlib import Path
 
 
 class PreProcessing:
-    def __init__(self, root_dir, path_to_mask_rcnn):
+    def __init__(self, root_dir, base_image_dir):
         self.root_dir = root_dir
-        self.path_to_mask_rcnn = path_to_mask_rcnn
+        self.base_image_dir = base_image_dir
         self.GPU_COUNT = 1
         self.IMAGES_PER_GPU = 1
-        self.MODEL_DIR = os.path.join(ROOT_DIR, "logs")
+        self.MODEL_DIR = os.path.join(Config.ROOT_DIR, "logs")
         self.COCO_MODEL_PATH = os.path.join(root_dir, "mask_rcnn_coco.h5")
         self._config = InferenceConfig()
 
@@ -34,42 +36,84 @@ class PreProcessing:
         self.background_subtractions(model)
 
     def background_subtractions(self, model):
-        # Load the image - image will be the uploaded image passed into the function in production
-         images = [cv2.imread(file) for file in glob.glob("./TRAINING_IMAGES/10_percent/*.jpg")]
-         for image in images:
-             # Run detection
-             results = model.detect([image], verbose=1)
-             # Visualize and save results
-             r = results[0]
-             img_copy = image.copy()
-             mask_output = np.zeros(img_copy.shape[:2], dtype=np.bool)
-             for s, (roi, class_id) in enumerate(zip(r['rois'], r['class_ids'])):
-                 if class_id == 1:
-                    row, col, end_row, end_col = roi
-                    cv2.rectangle(img_copy, (col, row), (end_col, end_row), (0, 0, 255))
-                    mask_output[row:end_row + 1, col:end_col + 1] = r['masks'][row:end_row + 1, col:end_col + 1, s]
-             filename_processed = self.create_segmented_filename()
-             cv2.imwrite('./sorted_8_percent/output' + filename_processed, img_copy)
-             cv2.imwrite('./sorted_8_percent/mask' + filename_processed, (255*(mask_output.astype(np.uint8))))
-             cv2.imwrite('./sorted_8_percent/segment' + filename_processed, image * mask_output[..., None].astype(np.uint8))
+        # Iterate through all files with extension JPG
+        for file in Path(self.base_image_dir).glob('**/*.jpg'):
+            # Access the file name and read in the image
+            f = str(file)
+            print('File: ' + f)
+            image = cv2.imread(f)
+
+            # Run detection
+            results = model.detect([image], verbose=1)
+            # Visualize and save results
+            r = results[0]
+            #img_copy = image.copy()
+            mask_output = np.zeros(image.shape[:2], dtype=np.bool)
+
+            # Find all of the human detections and extract bounding boxes
+            areas = []
+            for s, (roi, class_id) in enumerate(zip(r['rois'], r['class_ids'])):
+                if class_id == 1:
+                   row, col, end_row, end_col = roi
+                   areas.append((s, (end_col - col + 1) * (end_row - row + 1)))
+
+            # Find the human bounding box with the largest area
+            max_val = max(areas, key=lambda x: x[1])
+
+            # Get the bounding box coordinates
+            row, col, end_row, end_col = r['rois'][max_val[0]]
+
+            # Draw the rectangle
+            #cv2.rectangle(img_copy, (col, row), (end_col, end_row), (0, 0, 255))
+
+            # Extract the mask
+            mask_output[row:end_row + 1, col:end_col + 1] = r['masks'][row:end_row + 1, col:end_col + 1, max_val[0]]
+
+            # Create directory for the images for this label
+            try:
+                subdir = file.relative_to(*file.parts[:1])
+                to_write_file = os.path.join(self.output_dir, str(subdir))
+                to_write, _ = os.path.split(to_write_file)
+                os.mkdir(to_write)
+            except OSError:
+                pass
+
+            try:
+                # Create mask subdirectory
+                d = os.path.join(to_write, 'mask')
+                os.mkdir(d)
+            except OSError:
+                pass
+
+            try:
+                # Create segmented subdirectory
+                d = os.path.join(to_write, 'segment')
+                os.mkdir(d)
+            except OSError:
+                pass
+
+            filename_processed = self.create_segmented_filename()
+            #cv2.imwrite('./sorted_8_percent/output' + filename_processed, img_copy)
+            cv2.imwrite(os.path.join(to_write, 'mask', filename_processed), (255*(mask_output.astype(np.uint8))))
+            cv2.imwrite(os.path.join(to_write, 'segment', filename_processed), image * mask_output[..., None].astype(np.uint8))
 
     def create_segmented_filename(self):
         import uuid
         return str(uuid.uuid4()) + '.jpg'
 
-    def create_processed_images_directory(self):
+    def create_processed_images_directory(self, dir_):
         try:
-            os.mkdir('./sorted_8_percent')
+            self.output_dir = dir_
+            os.mkdir(dir_)
         except OSError:
             print("Creation of the directory failed")
         else:
             print("Successfully created the directory")
 
 
-path_to_mask_rcnn = '/home/travjav/Development/Mask_RCNN'
-# Root directory of the Mask RCNN project
-ROOT_DIR = os.path.abspath(path_to_mask_rcnn)
-processingScript = PreProcessing(path_to_mask_rcnn, ROOT_DIR)
-processingScript.create_processed_images_directory()
+base_image_dir = './test_data'
+output_dir = './output'
+processingScript = PreProcessing(Config.ROOT_DIR, base_image_dir)
+processingScript.create_processed_images_directory(output_dir)
 processingScript.import_mask_rcnn()
 processingScript.create_model_object()

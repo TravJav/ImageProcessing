@@ -1,6 +1,6 @@
 
 import sys, os
-path_to_mask_rcnn = '/home/travjav/Development/Mask_RCNN'
+path_to_mask_rcnn = '../Mask_RCNN'
 ROOT_DIR = os.path.abspath(path_to_mask_rcnn)
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
