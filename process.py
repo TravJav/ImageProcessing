@@ -49,18 +49,27 @@ class PreProcessing:
                     cv2.rectangle(img_copy, (col, row), (end_col, end_row), (0, 0, 255))
                     mask_output[row:end_row + 1, col:end_col + 1] = r['masks'][row:end_row + 1, col:end_col + 1, s]
              filename_processed = self.create_segmented_filename()
-             cv2.imwrite('output' + filename_processed, img_copy)
-             cv2.imwrite('mask' + filename_processed, (255*(mask_output.astype(np.uint8))))
-             cv2.imwrite('segment' + filename_processed, image * mask_output[..., None].astype(np.uint8))
+             cv2.imwrite('./sorted_8_percent/output' + filename_processed, img_copy)
+             cv2.imwrite('./sorted_8_percent/mask' + filename_processed, (255*(mask_output.astype(np.uint8))))
+             cv2.imwrite('./sorted_8_percent/segment' + filename_processed, image * mask_output[..., None].astype(np.uint8))
 
     def create_segmented_filename(self):
         import uuid
         return str(uuid.uuid4()) + '.jpg'
+
+    def create_processed_images_directory(self):
+        try:
+            os.mkdir('./sorted_8_percent')
+        except OSError:
+            print("Creation of the directory failed")
+        else:
+            print("Successfully created the directory")
 
 
 path_to_mask_rcnn = '/home/travjav/Development/Mask_RCNN'
 # Root directory of the Mask RCNN project
 ROOT_DIR = os.path.abspath(path_to_mask_rcnn)
 processingScript = PreProcessing(path_to_mask_rcnn, ROOT_DIR)
+processingScript.create_processed_images_directory()
 processingScript.import_mask_rcnn()
 processingScript.create_model_object()
