@@ -98,6 +98,26 @@ class DecomposeDataset(object):
             shutil.copyfile(s, to_write_segment)
             shutil.copyfile(file_mask, to_write_mask)
 
+        # Post-processing - make sure there are the same directories in both training
+        # and masks
+        dirs = os.listdir(self.base_dir)
+        for d in dirs:
+            try:
+                os.makedirs(os.path.join(self.train_dir_segment, d))
+            except OSError:
+                pass
+            try:
+                os.makedirs(os.path.join(self.train_dir_mask, d))
+            except OSError:
+                pass
+            try:
+                os.makedirs(os.path.join(self.val_dir_segment, d))
+            except OSError:
+                pass
+            try:
+                os.makedirs(os.path.join(self.val_dir_mask, d))
+            except OSError:
+                pass
 base_dir = './output/segment'
 output_dir = './output_seg'
 split_fraction = 0.8
