@@ -49,7 +49,7 @@ class PreProcessing:
             # Visualize and save results
             r = results[0]
             #img_copy = image.copy()
-            mask_output = np.zeros(image.shape[:2], dtype=np.bool)
+            #mask_output = np.zeros(image.shape[:2], dtype=np.bool)
 
             # Find all of the human detections and extract bounding boxes
             areas = []
@@ -71,40 +71,43 @@ class PreProcessing:
             # Draw the rectangle
             #cv2.rectangle(img_copy, (col, row), (end_col, end_row), (0, 0, 255))
 
-            # Extract the mask
-            mask_output[row:end_row + 1, col:end_col + 1] = r['masks'][row:end_row + 1, col:end_col + 1, max_val[0]]
+            # Extract the mask and image - cropped
+            mask_output = r['masks'][row:end_row + 1, col:end_col + 1, max_val[0]]
+            crop = image[row:end_row + 1, col:end_col + 1]
 
-            # Create directory for the images for this label
+            # Create directory for the images and mask for this image
             try:
-                subdir = file.relative_to(*file.parts[:1])
-                to_write_file = os.path.join(self.output_dir, str(subdir))
-                to_write, _ = os.path.split(to_write_file)
+                subdir = os.path.relpath(f, self.base_image_dir)
+                to_write_segment = os.path.join(self.output_dir, 'segment', subdir)
+                to_write_mask = os.path.join(self.output_dir, 'mask', subdir)
+                to_write, ff = os.path.split(to_write_segment)
                 os.makedirs(to_write)
             except OSError:
                 pass
 
             try:
                 # Create mask subdirectory
-                d = os.path.join(to_write, 'mask')
-                os.makedirs(d)
+                d1, _ = os.path.split(to_write_segment)
+                os.makedirs(d1)
             except OSError:
                 pass
 
             try:
                 # Create segmented subdirectory
-                d = os.path.join(to_write, 'segment')
-                os.makedirs(d)
+                d2, _ = os.path.split(to_write_mask)
+                os.makedirs(d2)
             except OSError:
                 pass
 
-            filename_processed = self.create_segmented_filename()
+            #filename_processed = self.create_segmented_filename()
+            filename_processed = ff
             #cv2.imwrite('./sorted_8_percent/output' + filename_processed, img_copy)
-            out = os.path.join(to_write, 'mask', filename_processed)
+            out = os.path.join(d2, filename_processed)
             print('Writing mask to: ' + out)
             cv2.imwrite(out, (255*(mask_output.astype(np.uint8))))
-            out = os.path.join(to_write, 'segment', filename_processed)
+            out = os.path.join(d1, filename_processed)
             print('Writing segmented image to: ' + out)
-            cv2.imwrite(out, image * mask_output[..., None].astype(np.uint8))
+            cv2.imwrite(out, crop * mask_output[..., None].astype(np.uint8))
 
     def create_segmented_filename(self):
         import uuid
@@ -126,3 +129,4 @@ processingScript = PreProcessing(Config.ROOT_DIR, base_image_dir)
 processingScript.create_processed_images_directory(output_dir)
 processingScript.import_mask_rcnn()
 processingScript.create_model_object()
+
