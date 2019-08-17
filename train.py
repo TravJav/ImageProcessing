@@ -1,5 +1,6 @@
-from keras.models import Sequential
-from keras.layers import BatchNormalization, Dense, Conv2D, MaxPooling2D, Flatten, Dropout
+from keras.applications.resnet50 import ResNet50, preprocess_input
+from keras.models import Model, Sequential
+from keras.layers import Input, Lambda, BatchNormalization, Dense, Conv2D, MaxPooling2D, Flatten, Dropout
 from keras.callbacks import ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
@@ -37,34 +38,52 @@ class Train:
             class_mode='categorical')
 
         print("Build the model...")
-        model = Sequential()
-        model.add(Conv2D(32, (3, 3), padding="same",
-            input_shape=(self.img_height, self.img_width, 3), activation="relu"))
-        model.add(Conv2D(32, (3, 3), padding="same", activation="relu"))
-        model.add(BatchNormalization())
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        
-        model.add(Conv2D(64, (3, 3), padding="same", activation="relu"))
-        model.add(Conv2D(64, (3, 3), padding="same", activation="relu"))
-        model.add(BatchNormalization())
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        #model = Sequential()
+        #model.add(Conv2D(32, (3, 3), padding="same",
+        #    input_shape=(self.img_height, self.img_width, 3), activation="relu"))
+        #model.add(Conv2D(32, (3, 3), padding="same", activation="relu"))
+        #model.add(BatchNormalization())
+        #model.add(MaxPooling2D(pool_size=(2, 2)))
+        #
+        #model.add(Conv2D(64, (3, 3), padding="same", activation="relu"))
+        #model.add(Conv2D(64, (3, 3), padding="same", activation="relu"))
+        #model.add(BatchNormalization())
+        #model.add(MaxPooling2D(pool_size=(2, 2)))
+        #
+        #model.add(Conv2D(128, (3, 3), padding="same", activation="relu"))
+        #model.add(Conv2D(128, (3, 3), padding="same", activation="relu"))
+        #model.add(BatchNormalization())
+        #model.add(MaxPooling2D(pool_size=(2, 2)))
+        #
+        #model.add(Conv2D(256, (3, 3), padding="same", activation="relu"))
+        #model.add(Conv2D(256, (3, 3), padding="same", activation="relu"))
+        #model.add(BatchNormalization())
+        #model.add(MaxPooling2D(pool_size=(2, 2)))
+        #
+        #model.add(Flatten())
+        #model.add(Dense(512, activation='relu'))
+        #model.add(Dropout(0.5))
+        #model.add(Dense(512, activation='relu'))
+        #model.add(Dropout(0.5))
+        #model.add(Dense(10, activation='softmax'))
 
-        model.add(Conv2D(128, (3, 3), padding="same", activation="relu"))
-        model.add(Conv2D(128, (3, 3), padding="same", activation="relu"))
-        model.add(BatchNormalization())
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # Use transfer learning from ResNet50 instead - discard Dense layers
+        model = ResNet50(weights='imagenet', input_shape=(self.img_width, self.img_height, 3),
+                         include_top=False)
+        # Make sure to preprocess input that ResNet50 is expecting
+        #inp = Input(shape=(self.img_width, self.img_height, 3))
+        inp = model.input
+        #x = Lambda(lambda x: preprocess_input(x))
         
-        model.add(Conv2D(256, (3, 3), padding="same", activation="relu"))
-        model.add(Conv2D(256, (3, 3), padding="same", activation="relu"))        
-        model.add(BatchNormalization())
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-
-        model.add(Flatten())
-        model.add(Dense(512, activation='relu'))
-        model.add(Dropout(0.5))
-        model.add(Dense(512, activation='relu'))
-        model.add(Dropout(0.5))
-        model.add(Dense(10, activation='softmax'))
+        # Create new dense layers on top
+        #x = Flatten()(model(x))
+        x = model.output
+        x = Flatten()(x)
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        x = Dense(1024, activation='relu')(x)
+        predictions = Dense(10, activation='softmax')(x)
+        final_model = Model(input=inp, outputs=predictions)
 
         filepath = 'model_bodyfat.hdf5'
         checkpoint = ModelCheckpoint(filepath,
@@ -73,12 +92,12 @@ class Train:
                                      save_best_only=True,
                                      mode='max')
         callbacks_list = [checkpoint]
-        model.summary()
-        model.compile(loss='categorical_crossentropy',
-                      optimizer='adam',
-                      metrics=['accuracy'])
+        final_model.summary()
+        final_model.compile(loss='categorical_crossentropy',
+                            optimizer='adam',
+                            metrics=['accuracy'])
         print('Training the model...')
-        history = model.fit_generator(
+        history = final_model.fit_generator(
             train_generator,
             steps_per_epoch=train_generator.samples // 16,
             validation_data=validation_generator,
