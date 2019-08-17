@@ -37,10 +37,11 @@ class PreProcessing:
 
     def background_subtractions(self, model):
         # Iterate through all files with extension JPG
-        for file in Path(self.base_image_dir).glob('**/*.jpg'):
+        files = list(Path(self.base_image_dir).glob('**/*.jpg'))
+        for l, file in enumerate(files):
             # Access the file name and read in the image
             f = str(file)
-            print('File: ' + f)
+            print('File: ' + f + " - {} / {}".format(l + 1, len(files)))
             image = cv2.imread(f)
 
             # Run detection
@@ -58,6 +59,10 @@ class PreProcessing:
                    areas.append((s, (end_col - col + 1) * (end_row - row + 1)))
 
             # Find the human bounding box with the largest area
+            if len(areas) == 0:
+                print('Warning: {} did not find any humans - skipping'.format(f))
+                continue
+
             max_val = max(areas, key=lambda x: x[1])
 
             # Get the bounding box coordinates
@@ -74,28 +79,32 @@ class PreProcessing:
                 subdir = file.relative_to(*file.parts[:1])
                 to_write_file = os.path.join(self.output_dir, str(subdir))
                 to_write, _ = os.path.split(to_write_file)
-                os.mkdir(to_write)
+                os.makedirs(to_write)
             except OSError:
                 pass
 
             try:
                 # Create mask subdirectory
                 d = os.path.join(to_write, 'mask')
-                os.mkdir(d)
+                os.makedirs(d)
             except OSError:
                 pass
 
             try:
                 # Create segmented subdirectory
                 d = os.path.join(to_write, 'segment')
-                os.mkdir(d)
+                os.makedirs(d)
             except OSError:
                 pass
 
             filename_processed = self.create_segmented_filename()
             #cv2.imwrite('./sorted_8_percent/output' + filename_processed, img_copy)
-            cv2.imwrite(os.path.join(to_write, 'mask', filename_processed), (255*(mask_output.astype(np.uint8))))
-            cv2.imwrite(os.path.join(to_write, 'segment', filename_processed), image * mask_output[..., None].astype(np.uint8))
+            out = os.path.join(to_write, 'mask', filename_processed)
+            print('Writing mask to: ' + out)
+            cv2.imwrite(out, (255*(mask_output.astype(np.uint8))))
+            out = os.path.join(to_write, 'segment', filename_processed)
+            print('Writing segmented image to: ' + out)
+            cv2.imwrite(out, image * mask_output[..., None].astype(np.uint8))
 
     def create_segmented_filename(self):
         import uuid
@@ -111,7 +120,7 @@ class PreProcessing:
             print("Successfully created the directory")
 
 
-base_image_dir = './test_data'
+base_image_dir = '../BodyfatDataset'
 output_dir = './output'
 processingScript = PreProcessing(Config.ROOT_DIR, base_image_dir)
 processingScript.create_processed_images_directory(output_dir)
