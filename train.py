@@ -1,3 +1,4 @@
+from keras.utils import multi_gpu_model
 from keras.applications.resnet50 import ResNet50, preprocess_input
 from keras.models import Model, Sequential
 from keras.layers import Input, Lambda, BatchNormalization, Dense, Conv2D, MaxPooling2D, Flatten, Dropout
@@ -6,11 +7,12 @@ from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 
 class Train:
-    def __init__(self, train_segment_dir, val_segment_dir, dims=(512, 512)):
+    def __init__(self, train_segment_dir, val_segment_dir, batch_size=32, dims=(256, 256)):
         self.train_segment_dir = train_segment_dir
         self.val_segment_dir = val_segment_dir
         self.img_width = dims[1]
         self.img_height = dims[0]
+        self.batch_size = batch_size
     def build_model(self):
         print("Preparing to load images and the assigned classes...")
         train_datagen = ImageDataGenerator(
@@ -28,13 +30,13 @@ class Train:
             self.train_segment_dir,
             target_size=(self.img_height, self.img_width),
             color_mode='rgb',
-            batch_size=16,
+            batch_size=self.batch_size,
             class_mode='categorical')
         validation_generator = val_datagen.flow_from_directory(
             self.val_segment_dir,
             target_size=(self.img_height, self.img_width),
             color_mode='rgb',
-            batch_size=16,
+            batch_size=self.batch_size,
             class_mode='categorical')
 
         print("Build the model...")
@@ -79,12 +81,12 @@ class Train:
         #x = Flatten()(model(x))
         x = model.output
         x = Flatten()(x)
-        x = Dense(1024, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
         x = Dropout(0.5)(x)
-        x = Dense(1024, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
         predictions = Dense(10, activation='softmax')(x)
         final_model = Model(input=inp, outputs=predictions)
-
+        final_gpu_model = multi_gpu_model(final_model, gpus=4) # New - training over multiple GPUs
         filepath = 'model_bodyfat.hdf5'
         checkpoint = ModelCheckpoint(filepath,
                                      monitor='val_acc',
@@ -92,20 +94,20 @@ class Train:
                                      save_best_only=True,
                                      mode='max')
         callbacks_list = [checkpoint]
-        final_model.summary()
-        final_model.compile(loss='categorical_crossentropy',
-                            optimizer='adam',
-                            metrics=['accuracy'])
+        final_gpu_model.summary()
+        final_gpu_model.compile(loss='categorical_crossentropy',
+                                optimizer='adam',
+                                metrics=['accuracy'])
         print('Training the model...')
-        history = final_model.fit_generator(
+        history = final_gpu_model.fit_generator(
             train_generator,
-            steps_per_epoch=train_generator.samples // 16,
+            steps_per_epoch=train_generator.samples // self.batch_size,
             validation_data=validation_generator,
-            validation_steps=validation_generator.samples // 16,
+            validation_steps=validation_generator.samples // self.batch_size,
             callbacks=callbacks_list,
             verbose=1,
             max_queue_size=10,
-            workers=32,
+            workers=64,
             shuffle=False,
             epochs=100)
 
@@ -121,5 +123,6 @@ class Train:
 
 
 train = Train(train_segment_dir='/home/ubuntu/travis/ImageProcessing/output_seg/train_segment',
-              val_segment_dir='/home/ubuntu/travis/ImageProcessing/output_seg/val_segment')
+              val_segment_dir='/home/ubuntu/travis/ImageProcessing/output_seg/val_segment',
+              batch_size=8, dims=(512, 512))
 train.build_model()
