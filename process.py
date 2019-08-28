@@ -36,8 +36,11 @@ class PreProcessing:
         self.background_subtractions(model)
 
     def background_subtractions(self, model):
-        # Iterate through all files with extension JPG
-        files = list(Path(self.base_image_dir).glob('**/*.jpg'))
+        # Iterate through all files with extension jpg and png
+        files_jpg = list(Path(self.base_image_dir).glob('**/*.jpg'))
+        files_png = list(Path(self.base_image_dir).glob('**/*.png'))
+        files = files_jpg[:]
+        files.extend(files_png)
         for l, file in enumerate(files):
             # Access the file name and read in the image
             f = str(file)

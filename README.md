@@ -5,6 +5,8 @@
     `pip install -r requirements.txt`
 3. The steps to go from preparing the data to training the model are as follows:
 
+    * In `Config.py`, change the `path_to_mask_rcnn` variable to where the Mask
+      RCNN project was cloned to
     * In `process.py`, change the `base_image_dir` and `output_dir` variables at
       the bottom of the script to be where the body fat images are (i.e. the location
       of where the Body Fat repo is: https://github.com/TravJav/BodyFatDataset and

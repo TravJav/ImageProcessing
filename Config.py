@@ -1,4 +1,3 @@
-
 import sys, os
 path_to_mask_rcnn = '../Mask_RCNN'
 ROOT_DIR = os.path.abspath(path_to_mask_rcnn)

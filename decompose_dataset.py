@@ -12,7 +12,10 @@ class DecomposeDataset(object):
         self.val_dir_segment = os.path.join(output_dir, 'val_segment')
         self.val_dir_mask = os.path.join(output_dir, 'val_mask')
 
-        self.files = list(Path(base_dir).glob('**/*.jpg'))
+        files_jpg = list(Path(base_dir).glob('**/*.jpg'))
+        files_png = list(Path(base_dir).glob('**/*.png'))
+        self.files = files_jpg[:]
+        self.files.extend(files_png)
         self.split_fraction = split_fraction
 
     def split(self):
@@ -120,6 +123,6 @@ class DecomposeDataset(object):
                 pass
 base_dir = './output/segment'
 output_dir = './output_seg'
-split_fraction = 0.8
+split_fraction = 0.9
 obj = DecomposeDataset(base_dir, output_dir, split_fraction)
 obj.split()

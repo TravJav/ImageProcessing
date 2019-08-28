@@ -2,17 +2,22 @@ from keras.utils import multi_gpu_model
 from keras.applications.xception import Xception
 from keras.models import Model, Sequential
 from keras.layers import Input, Lambda, BatchNormalization, Dense, Conv2D, MaxPooling2D, Flatten, Dropout, GlobalAveragePooling2D, GlobalMaxPooling2D
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.preprocessing.image import ImageDataGenerator
+from keras.optimizers import SGD
 import numpy as np
 
 class Train:
-    def __init__(self, train_segment_dir, val_segment_dir, batch_size=32, dims=(224, 224)):
+    def __init__(self, train_segment_dir, val_segment_dir, batch_size=32, dims=(224, 224), mode='train', lr=1e-8, epochs=250):
         self.train_segment_dir = train_segment_dir
         self.val_segment_dir = val_segment_dir
         self.img_width = dims[1]
         self.img_height = dims[0]
         self.batch_size = batch_size
+        self.mode = mode
+        self.lr = lr
+        self.epochs = epochs
+
     def build_model(self):
         print("Preparing to load images and the assigned classes...")
         train_datagen = ImageDataGenerator(
@@ -42,6 +47,10 @@ class Train:
             batch_size=self.batch_size,
             class_mode='categorical')
 
+        num_labels = len(train_generator.class_indices)
+        if num_labels != len(validation_generator.class_indices):
+            raise RuntimeError("Number of class labels between training and validation do not match")
+
         print("Build the model...")
 
         # Use transfer learning from ResNet50 instead - discard Dense layers
@@ -59,7 +68,7 @@ class Train:
         x = Dense(1024, activation='relu')(x)
         x = Dropout(0.5)(x)
         x = Dense(1024, activation='relu')(x)
-        predictions = Dense(10, activation='softmax')(x)
+        predictions = Dense(num_labels, activation='softmax')(x)
         final_model = Model(input=inp, outputs=predictions)
 
         # Only set batchnorm, dense and softmax layer to trainable
@@ -76,10 +85,16 @@ class Train:
                                      verbose=1,
                                      save_best_only=True,
                                      mode='max')
-        callbacks_list = [checkpoint]
+        optimizer = SGD(lr=self.lr, momentum=0.9)
+        if self.mode == 'find_lr':
+            lr_schedule = LearningRateScheduler(lambda x: self.lr * 10**(x / 20))
+            callbacks_list = [lr_schedule]
+        else:
+            callbacks_list = [checkpoint]
+
         final_gpu_model.summary()
         final_gpu_model.compile(loss='categorical_crossentropy',
-                                optimizer='adam',
+                                optimizer=optimizer,#optimizer='adam',
                                 metrics=['accuracy'])
         print('Training the model...')
         history = final_gpu_model.fit_generator(
@@ -92,7 +107,7 @@ class Train:
             max_queue_size=10,
             workers=64,
             shuffle=False,
-            epochs=250)
+            epochs=self.epochs)
 
         acc = history.history['acc']
         val_acc = history.history['val_acc']
@@ -107,5 +122,5 @@ class Train:
 
 train = Train(train_segment_dir='/home/ubuntu/travis/ImageProcessing/output_seg/train_segment',
               val_segment_dir='/home/ubuntu/travis/ImageProcessing/output_seg/val_segment',
-              batch_size=16, dims=(511, 511))
+              batch_size=16, dims=(511, 511), mode='find_lr', epochs=150)
 train.build_model()
