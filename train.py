@@ -113,14 +113,26 @@ class Train:
         val_acc = history.history['val_acc']
         loss = history.history['loss']
         val_loss = history.history['val_loss']
+        if self.mode == 'find_lr':
+            lrs = self.lr * 10 ** (np.arange(self.epochs) / 20)
+            lrs = lrs.tolist()
 
         with open('results.csv', 'w') as f:
-            f.write('iter,acc,val_acc,loss,val_loss\n')
+            out = 'iter,'
+            if self.mode == 'find_lr':
+                out += 'lr,'
+            out += 'acc,val_acc,loss,val_loss\n'
+            f.write(out)
             for k, (a, va, l, vl) in enumerate(zip(acc, val_acc, loss, val_loss)):
-                f.write('{},{},{},{},{}\n'.format(k + 1, a, va, l, vl))
+                out = str(k) + ','
+                if self.mode == 'find_lr':
+                    out += '{},'.format(lrs[k])
+                out += '{},{},{},{}\n'.format(a, va, l, vl)
+                f.write(out)
 
 
 train = Train(train_segment_dir='/home/ubuntu/travis/ImageProcessing/output_seg/train_segment',
               val_segment_dir='/home/ubuntu/travis/ImageProcessing/output_seg/val_segment',
-              batch_size=16, dims=(511, 511), mode='find_lr', epochs=150)
+              batch_size=16, dims=(511, 511), mode='train', epochs=250, lr=0.015)
+              #batch_size=16, dims=(511, 511), mode='find_lr', epochs=150)
 train.build_model()
