@@ -6,6 +6,8 @@ from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import SGD
 import numpy as np
+import os
+import pickle
 
 class Train:
     def __init__(self, train_segment_dir, val_segment_dir, batch_size=32, dims=(224, 224), mode='train', lr=1e-8, epochs=250):
@@ -50,9 +52,15 @@ class Train:
         num_labels = len(train_generator.class_indices)
         if num_labels != len(validation_generator.class_indices):
             raise RuntimeError("Number of class labels between training and validation do not match")
+        # Save the labels
+        dct_save = {v:k for (k, v) in train_generator.class_indices.items()}
+        path_to_save = os.path.join(os.getcwd(), 'models')
+        if not os.path.exists(path_to_save):
+            os.makedirs(path_to_save)
+        with open(os.path.join(path_to_save, 'labels.pkl'), 'wb') as f:
+            pickle.dump(dct_save, f)
 
         print("Build the model...")
-
         # Use transfer learning from ResNet50 instead - discard Dense layers
         model = Xception(weights='imagenet', input_shape=(self.img_width, self.img_height, 3),
                          include_top=False)
@@ -79,7 +87,7 @@ class Train:
         #        layer.trainable = True
 
         final_gpu_model = multi_gpu_model(final_model, gpus=4) # New - training over multiple GPUs
-        filepath = 'model_bodyfat.hdf5'
+        filepath = os.path.join(path_to_save, 'model_bodyfat.hdf5')
         checkpoint = ModelCheckpoint(filepath,
                                      monitor='val_acc',
                                      verbose=1,
