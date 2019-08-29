@@ -27,6 +27,23 @@
           $ python3 decompose_dataset.py
     * Run the training script which will create a deep learning model to learn
       how to infer the body fat of a human when their upper midsection is showing.
+      Change `train_segment_dir` and `val_segment_dir` to be where the training
+      and validation images are stored after running `decompose_dataset.py` at
+      the bottom of the script.  You can also change the batch size, image size
+      number of epochs and learning rate as well.  The `find_lr` mode will help
+      determine what the most optimal learning rate is by increasing it after
+      each epoch up to the maximum.  The losses after each epoch are saved
+      to `results.csv` which you can examine for the optional learning rate.
+      You can then run the `train` mode with this optimal learning rate to
+      perform final training.
 
           $ python3 train.py
-    * Reloading the trained model and performing inference is forthcoming.
+    * To perform inference, examine the `predict.py` file and modify
+      the `path_to_image` and `path_to_model` to be the path used for
+      the image to perform a prediction on and the directory of where
+      the model got saved (this should be in the `models` subdirectory).
+      The inference will run Mask RCNN on the image, crop and mask
+      the image, resize it so that it's compatible for the model and
+      determine the label for the image.  You can run this by:
+      
+          $ python3 predict.py
